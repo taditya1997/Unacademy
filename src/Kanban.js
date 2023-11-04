@@ -25,13 +25,6 @@ const TaskList = styled.div`
   margin-right: 45px;
 `;
 
-const TaskColumnStyles = styled.div`
-  margin: 8px;
-  display: flex;
-  width: 100%;
-  min-height: 80vh;
-`;
-
 const Title = styled.span`
   color: #10957d;
   background: rgba(16, 149, 125, 0.15);
