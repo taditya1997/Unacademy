@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
-import {  columnsFromBackend } from './KanbanData';
 import { DragDropContext, Droppable } from 'react-beautiful-dnd';
 import TaskCard from './TaskCard';
 import NewTaskButton from './NewTaskButton';
@@ -9,6 +8,11 @@ const Container = styled.div`
   display: flex;
   flex-direction: row;
 `;
+const Header = styled.div`
+  display: flex;
+  flex-direction: row;' 
+  justify-content: space-between;`;
+
 
 const TaskList = styled.div`
   min-height: 100px;
@@ -36,8 +40,49 @@ const Title = styled.span`
   align-self: flex-start;
 `;
 
+const Dropdown = styled.select`
+  margin: 10px;
+  padding: 5px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  min-width: 150px;
+  max-width: 200px;
+  background: #fff;
+`;
+
+const LOCAL_STORAGE_KEY = 'kanbanData';
+
 const Kanban = () => {
-  const [columns, setColumns] = useState(columnsFromBackend);
+  const [columnsFromBackend, setColumnsFromBackend] = useState({
+    toDo: {
+      title: 'To-do',
+      items: [],
+    },
+    inProgress: {
+      title: 'In Progress',
+      items: [],
+    },
+    done: {
+      title: 'Done',
+      items: [],
+    },
+  });
+  const [selectedColumn, setSelectedColumn] = useState('toDo');
+
+  // Load data from localStorage when the component mounts
+  useEffect(() => {
+    const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (savedData) {
+      setColumnsFromBackend(JSON.parse(savedData));
+    }
+  }, []);
+
+  // Save data to localStorage whenever columnsFromBackend changes
+  useEffect(() => {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(columnsFromBackend));
+  }, [columnsFromBackend]);
 
   const addNewTask = (taskText, dueDate) => {
     const newTask = {
@@ -50,15 +95,20 @@ const Kanban = () => {
       }),
     };
 
-    const updatedColumns = {
-      ...columns,
-      [Object.keys(columns)[0]]: {
-        ...columns[Object.keys(columns)[0]],
-        items: [...columns[Object.keys(columns)[0]].items, newTask],
-      },
-    };
+    if (selectedColumn in columnsFromBackend) {
+      const updatedColumns = {
+        ...columnsFromBackend,
+        [selectedColumn]: {
+          ...columnsFromBackend[selectedColumn],
+          items: [...columnsFromBackend[selectedColumn].items, newTask],
+        },
+      };
+      setColumnsFromBackend(updatedColumns);
+    }
+  };
 
-    setColumns(updatedColumns);
+  const handleDropdownChange = (event) => {
+    setSelectedColumn(event.target.value);
   };
 
   const onDragEnd = (result, columns, setColumns) => {
@@ -97,12 +147,20 @@ const Kanban = () => {
     }
   };
   return (
-    <>
-    <NewTaskButton onAddTask={addNewTask} />
-    <DragDropContext onDragEnd={(result) => onDragEnd(result, columns, setColumns)}>
-      <Container>
-        <TaskColumnStyles>
-          {Object.entries(columns).map(([columnId, column], index) => {
+    <div>
+      <Header>
+      <Dropdown value={selectedColumn} onChange={handleDropdownChange}>
+        {Object.keys(columnsFromBackend).map((columnId) => (
+          <option key={columnId} value={columnId}>
+            {columnsFromBackend[columnId].title}
+          </option>
+        ))}
+      </Dropdown>
+      <NewTaskButton onAddTask={addNewTask} />
+      </Header>
+      <DragDropContext onDragEnd={(result) => onDragEnd(result, columnsFromBackend, setColumnsFromBackend)}>
+        <Container>
+          {Object.entries(columnsFromBackend).map(([columnId, column], index) => {
             return (
               <Droppable key={columnId} droppableId={columnId}>
                 {(provided, snapshot) => (
@@ -110,18 +168,16 @@ const Kanban = () => {
                     <Title>{column.title}</Title>
                     {column.items.map((item, index) => (
                       <TaskCard key={item.id} item={item} index={index} />
-                    ))}
+          ))}
                     {provided.placeholder}
                   </TaskList>
                 )}
               </Droppable>
             );
           })}
-        </TaskColumnStyles>
-       
-      </Container>
-    </DragDropContext>
-    </>
+        </Container>
+      </DragDropContext>
+    </div>
   );
 };
 
